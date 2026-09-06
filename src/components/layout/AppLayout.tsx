@@ -26,6 +26,7 @@ import FactCheckIcon from '@mui/icons-material/FactCheck';
 import HistoryIcon from '@mui/icons-material/History';
 import SettingsIcon from '@mui/icons-material/Settings';
 import MenuIcon from '@mui/icons-material/Menu';
+import CloseIcon from '@mui/icons-material/Close';
 import LogoutIcon from '@mui/icons-material/Logout';
 import NotificationsIcon from '@mui/icons-material/Notifications';
 import DarkModeIcon from '@mui/icons-material/DarkMode';
@@ -76,7 +77,7 @@ const AppLayout: React.FC<AppLayoutProps> = ({ children }) => {
   const location = useLocation();
   const { user, logout } = useAuthStore();
   const { mode, setMode } = useThemeStore();
-  const [mobileOpen, setMobileOpen] = useState(false);
+  const [sidebarOpen, setSidebarOpen] = useState(true);
   const [search, setSearch] = useState('');
   const [anchorEl, setAnchorEl] = useState<null | HTMLElement>(null);
   const [notifAnchor, setNotifAnchor] = useState<null | HTMLElement>(null);
@@ -84,7 +85,7 @@ const AppLayout: React.FC<AppLayoutProps> = ({ children }) => {
 
   const handleNav = (path: string) => {
     navigate(path);
-    setMobileOpen(false);
+    setSidebarOpen(false);
   };
 
   const handleLogout = () => {
@@ -95,7 +96,7 @@ const AppLayout: React.FC<AppLayoutProps> = ({ children }) => {
   const handleSearch = (e: React.KeyboardEvent) => {
     if (e.key === 'Enter') {
       navigate(`/history?q=${encodeURIComponent(search)}`);
-      setMobileOpen(false);
+      setSidebarOpen(false);
     }
   };
 
@@ -115,7 +116,7 @@ const AppLayout: React.FC<AppLayoutProps> = ({ children }) => {
         color: '#e5eaf2',
       }}
     >
-      {/* Logo */}
+      {/* Logo + close button (mobile) */}
       <Box sx={{ px: 2.5, py: 2.5, display: 'flex', alignItems: 'center', gap: 1.5 }}>
         <Box
           sx={{
@@ -134,7 +135,7 @@ const AppLayout: React.FC<AppLayoutProps> = ({ children }) => {
         >
           ✓
         </Box>
-        <Box>
+        <Box sx={{ flex: 1 }}>
           <Typography sx={{ fontWeight: 800, fontSize: 18, lineHeight: 1.2, color: '#fff' }}>
             Freebuff
           </Typography>
@@ -142,6 +143,12 @@ const AppLayout: React.FC<AppLayoutProps> = ({ children }) => {
             سیستم گردش کار
           </Typography>
         </Box>
+        <IconButton
+          onClick={() => setSidebarOpen(false)}
+          sx={{ color: '#aab4c5', '&:hover': { color: '#fff' } }}
+        >
+          <CloseIcon />
+        </IconButton>
       </Box>
 
       <Divider sx={{ borderColor: 'rgba(255,255,255,.08)' }} />
@@ -213,6 +220,30 @@ const AppLayout: React.FC<AppLayoutProps> = ({ children }) => {
         </List>
       </Box>
 
+      {/* Logout button */}
+      <Box sx={{ px: 1.5, pb: 1.5 }}>
+        <ListItemButton
+          onClick={handleLogout}
+          sx={{
+            px: 1.5,
+            py: 1,
+            borderRadius: 2,
+            bgcolor: 'rgba(239,68,68,.1)',
+            color: '#ef4444',
+            '&:hover': { bgcolor: 'rgba(239,68,68,.2)' },
+            transition: 'all .15s ease',
+          }}
+        >
+          <ListItemIcon sx={{ minWidth: 38, color: 'inherit' }}>
+            <LogoutIcon />
+          </ListItemIcon>
+          <ListItemText
+            primary="خروج"
+            primaryTypographyProps={{ fontSize: 13.5, fontWeight: 700 }}
+          />
+        </ListItemButton>
+      </Box>
+
       {/* User profile bottom */}
       <Box sx={{ p: 1.5, borderTop: '1px solid rgba(255,255,255,.08)' }}>
         <ListItemButton
@@ -243,15 +274,17 @@ const AppLayout: React.FC<AppLayoutProps> = ({ children }) => {
 
   return (
     <Box sx={{ display: 'flex', minHeight: '100vh', bgcolor: 'background.default' }}>
-      {/* Desktop sidebar — always visible, never collapses */}
+      {/* Desktop sidebar — persistent, togglable */}
       <Drawer
-        variant="permanent"
+        variant="persistent"
+        open={sidebarOpen}
         sx={{
           display: { xs: 'none', md: 'block' },
           '& .MuiDrawer-paper': {
             width: SIDEBAR_WIDTH,
             bgcolor: SIDEBAR_BG,
             border: 'none',
+            transition: 'transform .2s ease',
           },
         }}
       >
@@ -261,8 +294,8 @@ const AppLayout: React.FC<AppLayoutProps> = ({ children }) => {
       {/* Mobile drawer — toggled by hamburger */}
       <Drawer
         variant="temporary"
-        open={mobileOpen}
-        onClose={() => setMobileOpen(false)}
+        open={sidebarOpen}
+        onClose={() => setSidebarOpen(false)}
         sx={{
           display: { xs: 'block', md: 'none' },
           '& .MuiDrawer-paper': { width: SIDEBAR_WIDTH, bgcolor: SIDEBAR_BG },
@@ -281,8 +314,8 @@ const AppLayout: React.FC<AppLayoutProps> = ({ children }) => {
           sx={{ bgcolor: 'background.default', borderBottom: '1px solid', borderColor: 'divider' }}
         >
           <Toolbar sx={{ gap: 1, px: { xs: 1.5, md: 3 } }}>
-            {/* Hamburger — mobile only */}
-            <IconButton sx={{ display: { md: 'none' } }} onClick={() => setMobileOpen(!mobileOpen)}>
+            {/* Hamburger — toggle sidebar */}
+            <IconButton onClick={() => setSidebarOpen(!sidebarOpen)}>
               <MenuIcon />
             </IconButton>
 
