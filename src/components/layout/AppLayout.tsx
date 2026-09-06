@@ -16,10 +16,8 @@ import {
   Divider,
   Tooltip,
   Badge,
-  Stack,
   TextField,
   InputAdornment,
-  alpha,
 } from '@mui/material';
 import DashboardIcon from '@mui/icons-material/Dashboard';
 import AssignmentIcon from '@mui/icons-material/Assignment';
@@ -107,8 +105,6 @@ const AppLayout: React.FC<AppLayoutProps> = ({ children }) => {
     { value: 'system', label: 'سیستم', icon: <SettingsBrightnessIcon fontSize="small" /> },
   ];
 
-  const activeLabel = navItems.find((n) => n.path.split('?')[0] === location.pathname)?.label;
-
   const sidebarContent = (
     <Box
       sx={{
@@ -185,9 +181,7 @@ const AppLayout: React.FC<AppLayoutProps> = ({ children }) => {
                   transition: 'all .15s ease',
                 }}
               >
-                <ListItemIcon
-                  sx={{ minWidth: 38, color: 'inherit' }}
-                >
+                <ListItemIcon sx={{ minWidth: 38, color: 'inherit' }}>
                   {item.icon}
                 </ListItemIcon>
                 <ListItemText
@@ -249,18 +243,22 @@ const AppLayout: React.FC<AppLayoutProps> = ({ children }) => {
 
   return (
     <Box sx={{ display: 'flex', minHeight: '100vh', bgcolor: 'background.default' }}>
-      {/* Desktop sidebar */}
+      {/* Desktop sidebar — always visible, never collapses */}
       <Drawer
         variant="permanent"
         sx={{
           display: { xs: 'none', md: 'block' },
-          '& .MuiDrawer-paper': { width: SIDEBAR_WIDTH, bgcolor: SIDEBAR_BG, border: 'none' },
+          '& .MuiDrawer-paper': {
+            width: SIDEBAR_WIDTH,
+            bgcolor: SIDEBAR_BG,
+            border: 'none',
+          },
         }}
       >
         {sidebarContent}
       </Drawer>
 
-      {/* Mobile drawer */}
+      {/* Mobile drawer — toggled by hamburger */}
       <Drawer
         variant="temporary"
         open={mobileOpen}
@@ -283,7 +281,8 @@ const AppLayout: React.FC<AppLayoutProps> = ({ children }) => {
           sx={{ bgcolor: 'background.default', borderBottom: '1px solid', borderColor: 'divider' }}
         >
           <Toolbar sx={{ gap: 1, px: { xs: 1.5, md: 3 } }}>
-            <IconButton sx={{ display: { md: 'none' } }} onClick={() => setMobileOpen(true)}>
+            {/* Hamburger — mobile only */}
+            <IconButton sx={{ display: { md: 'none' } }} onClick={() => setMobileOpen(!mobileOpen)}>
               <MenuIcon />
             </IconButton>
 
