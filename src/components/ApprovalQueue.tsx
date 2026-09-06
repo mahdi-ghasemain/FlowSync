@@ -1,150 +1,248 @@
 import React, { useState } from 'react';
+import {
+  Box,
+  Typography,
+  Paper,
+  Stack,
+  Chip,
+  Button,
+  Avatar,
+  Divider,
+  TextField,
+  Dialog,
+  DialogTitle,
+  DialogContent,
+  DialogActions,
+  List,
+  ListItem,
+  ListItemText,
+  useTheme,
+  Grid,
+} from '@mui/material';
+import CheckCircleIcon from '@mui/icons-material/CheckCircle';
+import CancelIcon from '@mui/icons-material/Cancel';
+import VisibilityIcon from '@mui/icons-material/Visibility';
 import { ApprovalRequest } from '../types';
-import { typeLabels, statusLabels, statusColors } from '../utils/mockData';
+import typeLabels from '../utils/typeLabels';
+import RequestStatusBadge from './ui/RequestStatusBadge';
 import SignaturePad from './SignaturePad';
-import toast from 'react-hot-toast';
 
 interface ApprovalQueueProps {
   approvals: ApprovalRequest[];
-  onApprove: (id: string, signature: string) => void;
+  onApprove: (id: string, signature: string, comment?: string) => void;
   onReject: (id: string, comment: string) => void;
   onSelect: (id: string) => void;
 }
 
+const waitTime = (createdAt: string) => {
+  const diff = Date.now() - new Date(createdAt).getTime();
+  const hours = Math.floor(diff / 3600000);
+  if (hours < 1) return 'کمتر از ۱ ساعت';
+  if (hours < 24) return `${hours} ساعت`;
+  return `${Math.floor(hours / 24)} روز`;
+};
+
 const ApprovalQueue: React.FC<ApprovalQueueProps> = ({ approvals, onApprove, onReject, onSelect }) => {
-  const [selectedRequest, setSelectedRequest] = useState<ApprovalRequest | null>(null);
-  const [showSignaturePad, setShowSignaturePad] = useState(false);
-  const [showRejectModal, setShowRejectModal] = useState(false);
+  const theme = useTheme();
+  const [signFor, setSignFor] = useState<ApprovalRequest | null>(null);
+  const [rejectFor, setRejectFor] = useState<ApprovalRequest | null>(null);
+  const [comment, setComment] = useState('');
   const [rejectComment, setRejectComment] = useState('');
 
-  const handleApproveClick = (request: ApprovalRequest) => {
-    setSelectedRequest(request);
-    setShowSignaturePad(true);
-  };
-
-  const handleRejectClick = (request: ApprovalRequest) => {
-    setSelectedRequest(request);
-    setShowRejectModal(true);
-  };
-
-  const handleSignatureConfirm = (signature: string) => {
-    if (selectedRequest) {
-      onApprove(selectedRequest.id, signature);
-      toast.success('درخواست تأیید شد ✅');
-    }
-    setShowSignaturePad(false);
-    setSelectedRequest(null);
-  };
-
-  const handleRejectConfirm = () => {
-    if (selectedRequest && rejectComment.trim()) {
-      onReject(selectedRequest.id, rejectComment);
-      toast.success('درخواست رد شد ❌');
-      setRejectComment('');
-    }
-    setShowRejectModal(false);
-    setSelectedRequest(null);
-  };
-
-  const sortedApprovals = [...approvals].sort(
+  const sorted = [...approvals].sort(
     (a, b) => new Date(a.createdAt).getTime() - new Date(b.createdAt).getTime()
   );
 
+  const handleSign = (signature: string) => {
+    if (signFor) {
+      onApprove(signFor.id, signature, comment || undefined);
+    }
+    setSignFor(null);
+    setComment('');
+  };
+
+  const handleRejectConfirm = () => {
+    if (rejectFor && rejectComment.trim()) {
+      onReject(rejectFor.id, rejectComment);
+      setRejectFor(null);
+      setRejectComment('');
+    }
+  };
+
   return (
-    <div className="space-y-4">
-      <div className="flex items-center justify-between mb-6">
-        <h2 className="text-xl font-bold text-gray-800">📋 در انتظار تأیید من</h2>
-        <span className="bg-primary-100 text-primary-700 px-3 py-1 rounded-full text-sm font-medium">
-          {approvals.length} درخواست
-        </span>
-      </div>
-
-      {sortedApprovals.length === 0 ? (
-        <div className="bg-white rounded-xl p-12 text-center shadow-sm">
-          <div className="text-5xl mb-4">🎉</div>
-          <h3 className="text-lg font-medium text-gray-600">هیچ درخواست در انتظاری ندارید</h3>
-          <p className="text-gray-400 mt-2">تمام درخواست‌ها تأیید شده‌اند</p>
-        </div>
+    <Box>
+      {sorted.length === 0 ? (
+        <Paper
+          elevation={0}
+          sx={{
+            borderRadius: 3,
+            p: 8,
+            textAlign: 'center',
+            border: '1px dashed',
+            borderColor: 'divider',
+          }}
+        >
+          <Box sx={{ fontSize: 52, mb: 2 }}>🎉</Box>
+          <Typography variant="h6" sx={{ fontWeight: 700 }}>
+            درخواست در انتظاری نیست
+          </Typography>
+          <Typography variant="body2" color="text.secondary" sx={{ mt: 1 }}>
+            تمام درخواست‌ها بررسی شده‌اند. درخواست جدیدی برای تأیید دریافت نشده است.
+          </Typography>
+        </Paper>
       ) : (
-        <div className="space-y-3">
-          {sortedApprovals.map((request) => (
-            <div
-              key={request.id}
-              className="bg-white rounded-xl p-5 shadow-sm border border-gray-100 hover:shadow-md transition-shadow"
-            >
-              <div className="flex items-start justify-between gap-4">
-                <div className="flex-1 cursor-pointer" onClick={() => onSelect(request.id)}>
-                  <div className="flex items-center gap-2 mb-2">
-                    <span className="text-xs bg-gray-100 text-gray-600 px-2 py-1 rounded">
-                      {typeLabels[request.type]}
-                    </span>
-                    <span className={`text-xs px-2 py-1 rounded ${statusColors[request.status]}`}>
-                      {statusLabels[request.status]}
-                    </span>
-                  </div>
-                  <h4 className="font-bold text-gray-800 mb-1">{request.title}</h4>
-                  <p className="text-sm text-gray-500 mb-2">{request.description}</p>
-                  <div className="text-xs text-gray-400">
-                    از: {request.creatorName} • {new Date(request.createdAt).toLocaleDateString('fa-IR')}
-                  </div>
-                </div>
-                <div className="flex gap-2 shrink-0">
-                  <button
-                    onClick={() => handleRejectClick(request)}
-                    className="px-4 py-2 bg-red-50 text-red-600 rounded-lg text-sm font-medium hover:bg-red-100 transition"
+        <Grid container spacing={2}>
+          {sorted.map((request) => (
+            <Grid item xs={12} key={request.id}>
+              <Paper
+                elevation={0}
+                sx={{
+                  borderRadius: 2.5,
+                  border: '1px solid',
+                  borderColor: 'divider',
+                  p: { xs: 2, md: 2.5 },
+                  transition: 'all 0.2s ease',
+                  '&:hover': {
+                    borderColor: 'primary.light',
+                    boxShadow: '0 4px 16px rgba(37,99,235,0.08)',
+                  },
+                }}
+              >
+                <Box sx={{ display: 'flex', gap: 2, flexWrap: 'wrap' }}>
+                  {/* Type icon */}
+                  <Avatar
+                    variant="rounded"
+                    sx={{
+                      width: 44,
+                      height: 44,
+                      bgcolor: 'primary.light' + '1f',
+                      fontSize: 22,
+                    }}
                   >
-                    ❌ رد
-                  </button>
-                  <button
-                    onClick={() => handleApproveClick(request)}
-                    className="px-4 py-2 bg-green-500 text-white rounded-lg text-sm font-medium hover:bg-green-600 transition"
-                  >
-                    ✅ تأیید
-                  </button>
-                </div>
-              </div>
-            </div>
+                    {request.type === 'purchase' ? '🛒' : request.type === 'leave' ? '🏖️' : request.type === 'expense' ? '💳' : '✈️'}
+                  </Avatar>
+
+                  {/* Info */}
+                  <Box sx={{ flex: 1, minWidth: 240, cursor: 'pointer' }} onClick={() => onSelect(request.id)}>
+                    <Stack direction="row" spacing={1} sx={{ mb: 0.7, flexWrap: 'wrap' }}>
+                      <Chip label={typeLabels[request.type]} size="small" variant="outlined" sx={{ height: 22, fontSize: 11 }} />
+                      <RequestStatusBadge status={request.status as any} size="small" />
+                    </Stack>
+                    <Typography variant="body1" sx={{ fontWeight: 700 }}>
+                      {request.title}
+                    </Typography>
+                    <Typography variant="body2" color="text.secondary" noWrap sx={{ maxWidth: 600, mt: 0.3 }}>
+                      {request.description}
+                    </Typography>
+                    <Stack direction="row" spacing={2} sx={{ mt: 1 }} flexWrap="wrap">
+                      <Typography variant="caption" color="text.secondary">
+                        از: <b>{request.creatorName}</b>
+                      </Typography>
+                      <Typography variant="caption" color="text.secondary">
+                        تاریخ: {new Date(request.createdAt).toLocaleDateString('fa-IR')}
+                      </Typography>
+                      <Typography variant="caption" color="text.secondary">
+                        زمان انتظار: {waitTime(request.createdAt)}
+                      </Typography>
+                      {request.formData?.amount && (
+                        <Typography variant="caption" color="text.secondary">
+                          مبلغ: {Number(request.formData.amount).toLocaleString('fa-IR')} ریال
+                        </Typography>
+                      )}
+                    </Stack>
+                  </Box>
+
+                  {/* Actions */}
+                  <Stack direction={{ xs: 'row', md: 'column' }} spacing={1} sx={{ alignItems: 'center', justifyContent: 'center' }}>
+                    <Button
+                      size="small"
+                      startIcon={<VisibilityIcon />}
+                      onClick={() => onSelect(request.id)}
+                    >
+                      مشاهده
+                    </Button>
+                    <Button
+                      size="small"
+                      variant="contained"
+                      color="success"
+                      startIcon={<CheckCircleIcon />}
+                      onClick={() => { setSignFor(request); setComment(''); }}
+                    >
+                      تأیید
+                    </Button>
+                    <Button
+                      size="small"
+                      variant="outlined"
+                      color="error"
+                      startIcon={<CancelIcon />}
+                      onClick={() => { setRejectFor(request); setRejectComment(''); }}
+                    >
+                      رد
+                    </Button>
+                  </Stack>
+                </Box>
+              </Paper>
+            </Grid>
           ))}
-        </div>
+        </Grid>
       )}
 
-      {showSignaturePad && selectedRequest && (
-        <SignaturePad
-          onSign={handleSignatureConfirm}
-          onCancel={() => { setShowSignaturePad(false); setSelectedRequest(null); }}
-        />
-      )}
+      {/* Signature dialog */}
+      <SignaturePad
+        open={Boolean(signFor)}
+        title={signFor ? `تأیید: ${signFor.title}` : 'امضای دیجیتال'}
+        onSign={handleSign}
+        onCancel={() => { setSignFor(null); setComment(''); }}
+      />
 
-      {showRejectModal && selectedRequest && (
-        <div className="fixed inset-0 bg-black/50 flex items-center justify-center z-50">
-          <div className="bg-white rounded-xl shadow-2xl p-6 w-full max-w-sm mx-4">
-            <h3 className="text-lg font-bold text-gray-800 mb-4">رد درخواست</h3>
-            <textarea
-              value={rejectComment}
-              onChange={(e) => setRejectComment(e.target.value)}
-              placeholder="دلیل رد را وارد کنید..."
-              className="w-full border border-gray-300 rounded-lg px-4 py-3 text-sm focus:border-primary-500 focus:outline-none resize-none"
-              rows={3}
-            />
-            <div className="flex gap-3 mt-4">
-              <button
-                onClick={() => { setShowRejectModal(false); setSelectedRequest(null); }}
-                className="flex-1 py-3 bg-gray-200 text-gray-700 rounded-lg font-medium hover:bg-gray-300 transition"
+      {/* Reject dialog */}
+      <Dialog
+        open={Boolean(rejectFor)}
+        onClose={() => setRejectFor(null)}
+        fullWidth
+        maxWidth="sm"
+      >
+        <DialogTitle sx={{ fontWeight: 700 }}>رد درخواست</DialogTitle>
+        <DialogContent>
+          {rejectFor && (
+            <>
+              <Paper
+                elevation={0}
+                sx={{ p: 2, borderRadius: 2, bgcolor: 'action.hover', mb: 2 }}
               >
-                انصراف
-              </button>
-              <button
-                onClick={handleRejectConfirm}
-                disabled={!rejectComment.trim()}
-                className="flex-1 py-3 bg-red-500 text-white rounded-lg font-medium hover:bg-red-600 transition disabled:opacity-50"
-              >
-                رد درخواست
-              </button>
-            </div>
-          </div>
-        </div>
-      )}
-    </div>
+                <Typography variant="body2" sx={{ fontWeight: 700 }}>{rejectFor.title}</Typography>
+                <Typography variant="caption" color="text.secondary">
+                  {typeLabels[rejectFor.type]} · {rejectFor.creatorName} · {new Date(rejectFor.createdAt).toLocaleDateString('fa-IR')}
+                </Typography>
+              </Paper>
+              <TextField
+                fullWidth
+                label="دلیل رد (الزامی)"
+                multiline
+                rows={3}
+                value={rejectComment}
+                onChange={(e) => setRejectComment(e.target.value)}
+                placeholder="لطفاً دلیل رد درخواست را بنویسید..."
+                autoFocus
+              />
+            </>
+          )}
+        </DialogContent>
+        <DialogActions sx={{ px: 3, pb: 2.5 }}>
+          <Button onClick={() => setRejectFor(null)} color="inherit" variant="outlined">
+            انصراف
+          </Button>
+          <Button
+            onClick={handleRejectConfirm}
+            color="error"
+            variant="contained"
+            disabled={!rejectComment.trim()}
+          >
+            رد درخواست
+          </Button>
+        </DialogActions>
+      </Dialog>
+    </Box>
   );
 };
 

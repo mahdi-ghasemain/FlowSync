@@ -15,6 +15,7 @@ export type RequestStatus = 'pending' | 'approved' | 'rejected' | 'final_approve
 
 export interface ApprovalRequest {
   id: string;
+  code?: string;
   title: string;
   type: RequestType;
   description: string;

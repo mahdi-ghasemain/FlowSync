@@ -1,63 +1,103 @@
-import React, { useRef, useState, useCallback } from 'react';
+import React, { useRef, useState, useCallback, useEffect } from 'react';
+import {
+  Dialog,
+  DialogTitle,
+  DialogContent,
+  DialogActions,
+  Button,
+  Box,
+  Typography,
+  ToggleButtonGroup,
+  ToggleButton,
+  TextField,
+  useTheme,
+} from '@mui/material';
+import DrawIcon from '@mui/icons-material/Draw';
+import KeyboardIcon from '@mui/icons-material/Keyboard';
+import ClearIcon from '@mui/icons-material/Clear';
 
 interface SignaturePadProps {
+  open: boolean;
   onSign: (signature: string) => void;
   onCancel: () => void;
+  title?: string;
 }
 
-const SignaturePad: React.FC<SignaturePadProps> = ({ onSign, onCancel }) => {
+const SignaturePad: React.FC<SignaturePadProps> = ({ open, onSign, onCancel, title = 'امضای دیجیتال' }) => {
   const canvasRef = useRef<HTMLCanvasElement>(null);
+  const [mode, setMode] = useState<'draw' | 'type'>('draw');
   const [isDrawing, setIsDrawing] = useState(false);
   const [hasDrawn, setHasDrawn] = useState(false);
   const [typedName, setTypedName] = useState('');
-  const [useTyped, setUseTyped] = useState(false);
+  const theme = useTheme();
+
+  useEffect(() => {
+    if (open) {
+      setMode('draw');
+      setTypedName('');
+      setHasDrawn(false);
+      // Initialize canvas after dialog opens
+      setTimeout(() => clearCanvas(), 60);
+    }
+  }, [open]);
 
   const getCanvasContext = () => {
     const canvas = canvasRef.current;
     if (!canvas) return null;
-    return { canvas, ctx: canvas.getContext('2d')! };
+    const ctx = canvas.getContext('2d')!;
+    ctx.lineWidth = 2.2;
+    ctx.lineCap = 'round';
+    ctx.lineJoin = 'round';
+    ctx.strokeStyle = theme.palette.mode === 'dark' ? '#93c5fd' : '#1e3a8a';
+    return { canvas, ctx };
   };
 
-  const startDrawing = useCallback((e: React.MouseEvent | React.TouchEvent) => {
+  const clearCanvas = () => {
+    const canvas = canvasRef.current;
+    if (!canvas) return;
+    const ctx = canvas.getContext('2d')!;
+    ctx.clearRect(0, 0, canvas.width, canvas.height);
+    setHasDrawn(false);
+  };
+
+  const getPos = (e: React.PointerEvent) => {
+    const canvas = canvasRef.current!;
+    const rect = canvas.getBoundingClientRect();
+    const scaleX = canvas.width / rect.width;
+    const scaleY = canvas.height / rect.height;
+    return {
+      x: (e.clientX - rect.left) * scaleX,
+      y: (e.clientY - rect.top) * scaleY,
+    };
+  };
+
+  const startDrawing = useCallback((e: React.PointerEvent) => {
+    e.preventDefault();
     const data = getCanvasContext();
     if (!data) return;
-    const { canvas, ctx } = data;
-    const rect = canvas.getBoundingClientRect();
-    const x = 'touches' in e ? e.touches[0].clientX - rect.left : e.clientX - rect.left;
-    const y = 'touches' in e ? e.touches[0].clientY - rect.top : e.clientY - rect.top;
-    ctx.beginPath();
-    ctx.moveTo(x, y);
+    const { x, y } = getPos(e);
+    data.ctx.beginPath();
+    data.ctx.moveTo(x, y);
     setIsDrawing(true);
     setHasDrawn(true);
-  }, []);
+  }, [theme.palette.mode]);
 
-  const draw = useCallback((e: React.MouseEvent | React.TouchEvent) => {
+  const draw = useCallback((e: React.PointerEvent) => {
     if (!isDrawing) return;
+    e.preventDefault();
     const data = getCanvasContext();
     if (!data) return;
-    const { canvas, ctx } = data;
-    const rect = canvas.getBoundingClientRect();
-    const x = 'touches' in e ? e.touches[0].clientX - rect.left : e.clientX - rect.left;
-    const y = 'touches' in e ? e.touches[0].clientY - rect.top : e.clientY - rect.top;
-    ctx.lineTo(x, y);
-    ctx.strokeStyle = '#1e3a8a';
-    ctx.lineWidth = 2;
-    ctx.stroke();
-  }, [isDrawing]);
+    const { x, y } = getPos(e);
+    data.ctx.lineTo(x, y);
+    data.ctx.stroke();
+  }, [isDrawing, theme.palette.mode]);
 
   const stopDrawing = useCallback(() => {
     setIsDrawing(false);
   }, []);
 
-  const clearCanvas = () => {
-    const data = getCanvasContext();
-    if (!data) return;
-    data.ctx.clearRect(0, 0, data.canvas.width, data.canvas.height);
-    setHasDrawn(false);
-  };
-
   const handleConfirm = () => {
-    if (useTyped && typedName.trim()) {
+    if (mode === 'type' && typedName.trim()) {
       onSign(typedName);
     } else if (canvasRef.current && hasDrawn) {
       const dataUrl = canvasRef.current.toDataURL('image/png');
@@ -65,82 +105,85 @@ const SignaturePad: React.FC<SignaturePadProps> = ({ onSign, onCancel }) => {
     }
   };
 
-  const canConfirm = useTyped ? typedName.trim().length > 0 : hasDrawn;
+  const canConfirm = mode === 'type' ? typedName.trim().length > 0 : hasDrawn;
 
   return (
-    <div className="fixed inset-0 bg-black/50 flex items-center justify-center z-50">
-      <div className="bg-white rounded-xl shadow-2xl p-6 w-full max-w-md mx-4">
-        <h3 className="text-lg font-bold text-gray-800 mb-4 text-center">امضای دیجیتال</h3>
-        
-        <div className="flex gap-2 mb-4">
-          <button
-            onClick={() => setUseTyped(false)}
-            className={`flex-1 py-2 rounded-lg text-sm font-medium transition ${!useTyped ? 'bg-primary-600 text-white' : 'bg-gray-100 text-gray-600'}`}
-          >
-            🖊️ رسم با ماوس
-          </button>
-          <button
-            onClick={() => setUseTyped(true)}
-            className={`flex-1 py-2 rounded-lg text-sm font-medium transition ${useTyped ? 'bg-primary-600 text-white' : 'bg-gray-100 text-gray-600'}`}
-          >
-            ⌨️ تایپ نام
-          </button>
-        </div>
+    <Dialog open={open} onClose={onCancel} fullWidth maxWidth="sm">
+      <DialogTitle sx={{ fontWeight: 700 }}>{title}</DialogTitle>
+      <DialogContent>
+        <ToggleButtonGroup
+          value={mode}
+          exclusive
+          onChange={(_, v) => v && setMode(v)}
+          fullWidth
+          size="small"
+          sx={{ mb: 2 }}
+        >
+          <ToggleButton value="draw">
+            <DrawIcon fontSize="small" sx={{ mr: 1 }} /> رسم با ماوس
+          </ToggleButton>
+          <ToggleButton value="type">
+            <KeyboardIcon fontSize="small" sx={{ mr: 1 }} /> تایپ نام
+          </ToggleButton>
+        </ToggleButtonGroup>
 
-        {!useTyped ? (
-          <div className="border-2 border-dashed border-gray-300 rounded-lg overflow-hidden mb-4">
-            <canvas
-              ref={canvasRef}
-              width={380}
-              height={150}
-              className="w-full cursor-crosshair bg-white"
-              onMouseDown={startDrawing}
-              onMouseMove={draw}
-              onMouseUp={stopDrawing}
-              onMouseLeave={stopDrawing}
-              onTouchStart={startDrawing}
-              onTouchMove={draw}
-              onTouchEnd={stopDrawing}
-            />
-          </div>
+        {mode === 'draw' ? (
+          <>
+            <Box
+              sx={{
+                border: '2px dashed',
+                borderColor: 'divider',
+                borderRadius: 2,
+                overflow: 'hidden',
+                bgcolor: 'background.default',
+                touchAction: 'none',
+              }}
+            >
+              <canvas
+                ref={canvasRef}
+                width={560}
+                height={180}
+                style={{ width: '100%', height: 180, cursor: 'crosshair', display: 'block', touchAction: 'none' }}
+                onPointerDown={startDrawing}
+                onPointerMove={draw}
+                onPointerUp={stopDrawing}
+                onPointerLeave={stopDrawing}
+              />
+            </Box>
+            <Box sx={{ display: 'flex', justifyContent: 'flex-end', mt: 1 }}>
+              <Button size="small" startIcon={<ClearIcon fontSize="small" />} onClick={clearCanvas} color="inherit">
+                پاک کردن
+              </Button>
+            </Box>
+          </>
         ) : (
-          <div className="mb-4">
-            <input
-              type="text"
-              value={typedName}
-              onChange={(e) => setTypedName(e.target.value)}
-              placeholder="نام کامل خود را تایپ کنید..."
-              className="w-full border-2 border-gray-300 rounded-lg px-4 py-3 text-center text-lg font-bold text-primary-800 focus:border-primary-500 focus:outline-none"
-            />
-          </div>
+          <TextField
+            fullWidth
+            autoFocus
+            label="نام کامل"
+            placeholder="نام و نام خانوادگی خود را بنویسید"
+            value={typedName}
+            onChange={(e) => setTypedName(e.target.value)}
+            sx={{
+              '& input': { fontSize: 22, textAlign: 'center', fontWeight: 700, fontFamily: 'cursive, Vazirmatn' },
+              mb: 1,
+            }}
+          />
         )}
 
-        {!useTyped && (
-          <button
-            onClick={clearCanvas}
-            className="w-full mb-3 py-2 bg-gray-100 text-gray-600 rounded-lg text-sm hover:bg-gray-200 transition"
-          >
-            پاک کردن
-          </button>
-        )}
-
-        <div className="flex gap-3">
-          <button
-            onClick={onCancel}
-            className="flex-1 py-3 bg-gray-200 text-gray-700 rounded-lg font-medium hover:bg-gray-300 transition"
-          >
-            انصراف
-          </button>
-          <button
-            onClick={handleConfirm}
-            disabled={!canConfirm}
-            className="flex-1 py-3 bg-primary-600 text-white rounded-lg font-medium hover:bg-primary-700 transition disabled:opacity-50 disabled:cursor-not-allowed"
-          >
-            ✅ تأیید امضا
-          </button>
-        </div>
-      </div>
-    </div>
+        <Typography variant="caption" color="text.secondary" sx={{ display: 'block', mt: 0.5 }}>
+          با امضای خود، صحت این تأیید را می‌پذیرید.
+        </Typography>
+      </DialogContent>
+      <DialogActions sx={{ px: 3, pb: 2.5 }}>
+        <Button onClick={onCancel} variant="outlined" color="inherit">
+          انصراف
+        </Button>
+        <Button onClick={handleConfirm} variant="contained" disabled={!canConfirm} sx={{ fontWeight: 700 }}>
+          ✅ تأیید امضا
+        </Button>
+      </DialogActions>
+    </Dialog>
   );
 };
 
